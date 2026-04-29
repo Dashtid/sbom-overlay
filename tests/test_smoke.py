@@ -5,7 +5,7 @@ from click.testing import CliRunner
 
 from sbom_overlay import __version__
 from sbom_overlay.cli import cli
-from sbom_overlay.parsers import cyclonedx, spdx
+from sbom_overlay.parsers import cyclonedx
 from sbom_overlay.parsers.model import Component
 from sbom_overlay.reconcile.diff import Reconciliation, reconcile
 from sbom_overlay.support.log import get_logger, setup_logging, strip_ansi
@@ -35,11 +35,6 @@ def test_component_dataclass_defaults() -> None:
     c = Component(name="openssl", version="3.0.0", source="manual")
     assert c.purl is None
     assert c.license is None
-
-
-def test_spdx_parser_stub(tmp_path: Path) -> None:
-    with pytest.raises(NotImplementedError):
-        spdx.load(tmp_path / "x.spdx.json")
 
 
 def test_cyclonedx_parser_stub(tmp_path: Path) -> None:
