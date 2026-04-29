@@ -1,5 +1,12 @@
 # sbom-overlay
 
+[![CI](https://github.com/Dashtid/sbom-overlay/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/sbom-overlay/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Dashtid/sbom-overlay/branch/main/graph/badge.svg)](https://codecov.io/gh/Dashtid/sbom-overlay)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Dashtid/sbom-overlay/badge)](https://scorecard.dev/viewer/?uri=github.com/Dashtid/sbom-overlay)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
+
 Reconcile a hand-curated SPDX SBOM (the authoritative artifact, e.g. for FDA
 submission) against an automatically generated Syft SBOM. Surfaces components
 the manual SBOM may have missed, and version or license disagreements between
