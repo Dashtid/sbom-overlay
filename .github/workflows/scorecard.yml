@@ -1,0 +1,52 @@
+name: Scorecard supply-chain security
+
+# Runs OpenSSF Scorecard to grade supply-chain hygiene (branch protection,
+# pinned dependencies, signed releases, token permissions, etc.). Results
+# publish to scorecard.dev so the README badge auto-updates, and SARIF goes
+# to GitHub Code Scanning under the "scorecard" category.
+#
+# This is purely advisory — Scorecard never fails CI on findings.
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: '0 6 * * 1'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write   # upload SARIF to Code Scanning
+      id-token: write          # publish results to scorecard.dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@v2.4.2
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload SARIF artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: scorecard-sarif
+          path: results.sarif
+          retention-days: 14
+
+      - name: Upload SARIF to Code Scanning
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif
+          category: scorecard
