@@ -4,7 +4,6 @@
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "Affinity 5.0.0 SBOM",
   "documentNamespace": "https://example.invalid/affinity-5.0.0",
-  "documentDescribes": ["SPDXRef-Package-Affinity"],
   "creationInfo": {
     "created": "2026-04-29T00:00:00Z",
     "creators": ["Tool: hand-curated"]
@@ -66,18 +65,18 @@
           "referenceLocator": "cpe:2.3:a:example:weird-ref-pkg:1.0.0:*:*:*:*:*:*:*"
         }
       ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-Package-Affinity",
+      "relationshipType": "DESCRIBES"
     },
     {
-      "SPDXID": "SPDXRef-Package-MalformedPurl",
-      "name": "malformed-purl-pkg",
-      "versionInfo": "2.0.0",
-      "downloadLocation": "NOASSERTION",
-      "externalRefs": [
-        {
-          "referenceCategory": "PACKAGE-MANAGER",
-          "referenceType": "purl"
-        }
-      ]
+      "spdxElementId": "SPDXRef-Package-OpenSSL",
+      "relatedSpdxElement": "SPDXRef-Package-Newtonsoft",
+      "relationshipType": "DEPENDS_ON"
     }
   ]
 }
