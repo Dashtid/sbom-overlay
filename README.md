@@ -44,7 +44,7 @@ pip install -e .
 ```bash
 sbom-overlay reconcile \
     --manual product.spdx.json \
-    --syft   product.cdx.json \
+    --syft   product.syft.spdx.json \
     --name   product-1.0.0
 ```
 

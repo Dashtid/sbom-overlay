@@ -5,7 +5,6 @@ from click.testing import CliRunner
 
 from sbom_overlay import __version__
 from sbom_overlay.cli import cli
-from sbom_overlay.parsers import cyclonedx
 from sbom_overlay.parsers.model import Component
 from sbom_overlay.reconcile.diff import Reconciliation, reconcile
 from sbom_overlay.support.log import get_logger, setup_logging, strip_ansi
@@ -19,7 +18,7 @@ def test_version_flag() -> None:
 
 def test_reconcile_not_implemented(tmp_path: Path) -> None:
     manual = tmp_path / "manual.spdx.json"
-    syft = tmp_path / "syft.cdx.json"
+    syft = tmp_path / "syft.spdx.json"
     manual.write_text("{}", encoding="utf-8")
     syft.write_text("{}", encoding="utf-8")
 
@@ -35,11 +34,6 @@ def test_component_dataclass_defaults() -> None:
     c = Component(name="openssl", version="3.0.0", source="manual")
     assert c.purl is None
     assert c.license is None
-
-
-def test_cyclonedx_parser_stub(tmp_path: Path) -> None:
-    with pytest.raises(NotImplementedError):
-        cyclonedx.load(tmp_path / "x.cdx.json")
 
 
 def test_reconcile_stub() -> None:

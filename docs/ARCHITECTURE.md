@@ -3,7 +3,7 @@
 ## Problem
 
 A hand-curated SBOM (SPDX 2.3) is the authoritative artifact for regulatory
-submission. A scanner-generated SBOM (Syft, CycloneDX 1.5) is the easiest
+submission. A scanner-generated SBOM (Syft, SPDX 2.3 JSON) is the easiest
 artifact to keep up to date but cannot see vendored or statically-linked
 components.
 
@@ -17,14 +17,14 @@ component triaged by a human.
             \
              >---  parse  ---  normalize  ---\
             /                                  >---  reconcile  ---  report.md
-   syft.cdx.json (overlay)                   /
+   syft.spdx.json (overlay)                  /
             \                               /
              >---  parse  ---  normalize  -/
 ```
 
 ### Stages
 
-1. **Parse**. Read SPDX 2.3 and CycloneDX 1.5 into a common in-memory shape:
+1. **Parse**. Read both SPDX 2.3 inputs into a common in-memory shape:
    `{name, version, purl?, license?, source: "manual" | "syft"}`.
 
 2. **Normalize**. Lowercase names, strip vendor prefixes where unambiguous,
@@ -42,7 +42,9 @@ component triaged by a human.
 
 - Generating a merged SBOM. Reconciliation only.
 - Vulnerability scanning. That is `sbom-sentinel`'s job.
-- Format conversion (SPDX <-> CycloneDX). Use Syft or `spdx-tools` if needed.
+- CycloneDX support. v1 is SPDX-on-SPDX. Have Syft emit SPDX (`syft scan ...
+  -o spdx-json=...`); a CycloneDX parser is an additive follow-up if a real
+  use case arrives.
 
 ## Open questions
 
