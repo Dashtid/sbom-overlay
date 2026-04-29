@@ -1,15 +1,17 @@
-"""Parser for SPDX 2.3 JSON SBOMs."""
+"""Parser for SPDX 2.x SBOMs (JSON, tag-value, YAML, RDF/XML)."""
 
-import json
 import logging
 from pathlib import Path
-from typing import Any
+
+from license_expression import LicenseExpression
+from spdx_tools.spdx.model.document import Document as SpdxDocument
+from spdx_tools.spdx.model.package import Package as SpdxPackage
+from spdx_tools.spdx.model.relationship import RelationshipType
+from spdx_tools.spdx.parser.parse_anything import parse_file
 
 from sbom_overlay.parsers.model import Component
 
 _log = logging.getLogger(__name__)
-
-_NULL_LICENSE_TOKENS = frozenset({"NOASSERTION", "NONE"})
 
 
 class SpdxParseError(ValueError):
@@ -17,75 +19,70 @@ class SpdxParseError(ValueError):
 
 
 def load(path: Path) -> list[Component]:
-    """Parse an SPDX 2.3 JSON SBOM into normalized Component records.
+    """Parse an SPDX 2.x SBOM into normalized Component records.
 
+    Accepts any SPDX 2.x serialization that spdx-tools understands: JSON
+    (.spdx.json), tag-value (.spdx, .txt), YAML (.spdx.yaml), and RDF/XML.
     Components are tagged with source="manual" and returned in deterministic
-    order (lowercase name, then version). Packages referenced by the
-    document's documentDescribes field are skipped: they represent the
-    product itself, not a dependency, and would otherwise produce a
-    guaranteed "Only in manual" entry on every report.
+    order (lowercase name, then version).
 
-    Raises SpdxParseError on invalid JSON, a non-object root, a missing or
-    non-2.x spdxVersion, or a package without a name.
+    Skips packages targeted by the document's DESCRIBES relationship; those
+    represent the product itself and would otherwise produce a guaranteed
+    "Only in manual" entry on every report.
+
+    Raises SpdxParseError on parse failure or non-2.x spdxVersion. SPDX 3.0
+    is rejected explicitly because spdx-tools accepts the version string but
+    cannot interpret the underlying graph-based format.
     """
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise SpdxParseError(f"{path}: invalid JSON: {exc}") from exc
+        doc = parse_file(str(path))
+    except Exception as exc:
+        raise SpdxParseError(f"{path}: {exc}") from exc
 
-    if not isinstance(raw, dict):
-        raise SpdxParseError(f"{path}: top-level value must be a JSON object")
-
-    doc: dict[str, Any] = raw
-
-    version = doc.get("spdxVersion")
-    if not isinstance(version, str) or not version.startswith("SPDX-2."):
+    version = doc.creation_info.spdx_version
+    if not version.startswith("SPDX-2."):
         raise SpdxParseError(f"{path}: expected SPDX-2.x, got {version!r}")
 
-    described: set[str] = set(doc.get("documentDescribes") or [])
-    packages: list[dict[str, Any]] = list(doc.get("packages") or [])
-
+    described = _document_describes(doc)
     components: list[Component] = []
-    for pkg in packages:
-        spdx_id = pkg.get("SPDXID")
-        if isinstance(spdx_id, str) and spdx_id in described:
+    for pkg in doc.packages:
+        if pkg.spdx_id in described:
             continue
-
-        name = pkg.get("name")
-        if not isinstance(name, str) or not name:
-            raise SpdxParseError(f"{path}: package {spdx_id!r} has no name")
-
-        version_info = pkg.get("versionInfo")
-        if not isinstance(version_info, str) or not version_info:
-            _log.debug("skipping package %r: no versionInfo", name)
+        if not pkg.version:
+            _log.debug("skipping package %r: no version", pkg.name)
             continue
-
         components.append(
             Component(
-                name=name,
-                version=version_info,
+                name=pkg.name,
+                version=pkg.version,
                 source="manual",
                 purl=_extract_purl(pkg),
                 license=_extract_license(pkg),
             )
         )
-
     components.sort(key=lambda c: (c.name.lower(), c.version))
     return components
 
 
-def _extract_purl(pkg: dict[str, Any]) -> str | None:
-    for ref in pkg.get("externalRefs") or []:
-        if ref.get("referenceType") == "purl":
-            locator = ref.get("referenceLocator")
-            if isinstance(locator, str) and locator:
-                return locator
+def _document_describes(doc: SpdxDocument) -> set[str]:
+    return {
+        rel.related_spdx_element_id
+        for rel in doc.relationships
+        if rel.spdx_element_id == doc.creation_info.spdx_id
+        and rel.relationship_type == RelationshipType.DESCRIBES
+        and isinstance(rel.related_spdx_element_id, str)
+    }
+
+
+def _extract_purl(pkg: SpdxPackage) -> str | None:
+    for ref in pkg.external_references:
+        if ref.reference_type == "purl":
+            return ref.locator
     return None
 
 
-def _extract_license(pkg: dict[str, Any]) -> str | None:
-    for field in ("licenseConcluded", "licenseDeclared"):
-        value = pkg.get(field)
-        if isinstance(value, str) and value and value not in _NULL_LICENSE_TOKENS:
-            return value
+def _extract_license(pkg: SpdxPackage) -> str | None:
+    for value in (pkg.license_concluded, pkg.license_declared):
+        if isinstance(value, LicenseExpression):
+            return str(value)
     return None
