@@ -37,6 +37,4 @@ sbom_inputs/
 artifacts/
 logs/
 *.spdx.json
-*.cdx.json
 !tests/fixtures/**/*.spdx.json
-!tests/fixtures/**/*.cdx.json
