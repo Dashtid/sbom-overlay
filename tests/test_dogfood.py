@@ -1,46 +1,53 @@
-"""Smoke-level checks on the dicom-fuzzer dogfood fixture pair.
+"""End-to-end checks on the dicom-fuzzer dogfood fixture pair.
 
-Bucket-level reconciliation assertions belong in the reconciler PR; here we
-verify the fixtures parse and have the rough shape we shaped them to have.
+The fixture is shaped to seed every reconciliation bucket; these tests assert
+each engineered case lands in the right one.
 """
 
 from pathlib import Path
 
 from sbom_overlay.parsers.spdx import load
+from sbom_overlay.reconcile.diff import reconcile
 
 DOGFOOD = Path(__file__).parent / "fixtures" / "dogfood" / "dicom-fuzzer-1.11.0"
 
 
 def test_manual_sbom_parses_and_lists_direct_deps() -> None:
-    components = load(DOGFOOD / "manual.spdx")
+    components = load(DOGFOOD / "manual.spdx", source="manual")
     names = {c.name for c in components}
 
-    # Direct runtime deps from dicom-fuzzer's pyproject.toml.
     assert {"pydicom", "pynetdicom", "numpy", "pydantic", "rich", "cryptography"} <= names
-
-    # Vendored components shaped to land in the Only-in-manual bucket.
     assert {"internal-dicom-codec", "vendored-zlib"} <= names
-
     # The DESCRIBES target (the dicom-fuzzer product itself) is skipped.
     assert "dicom-fuzzer" not in names
 
 
 def test_syft_sbom_parses_and_finds_more_than_manual() -> None:
-    syft_components = load(DOGFOOD / "syft.spdx.json")
-    manual_components = load(DOGFOOD / "manual.spdx")
+    syft_components = load(DOGFOOD / "syft.spdx.json", source="syft")
+    manual_components = load(DOGFOOD / "manual.spdx", source="manual")
 
-    assert len(syft_components) > len(manual_components), (
-        "Syft should find substantially more components than the manual SBOM "
-        "lists (transitive deps, dev-deps, etc.) — that gap is the value "
-        "proposition for reconciliation."
-    )
+    assert len(syft_components) > len(manual_components)
 
 
-def test_pydantic_version_disagreement_is_seeded() -> None:
-    # Engineered to demonstrate the In-both-with-version-disagreement bucket:
-    # manual lists the pyproject floor, Syft reports the installed version.
-    manual = {c.name: c for c in load(DOGFOOD / "manual.spdx")}
-    syft = {c.name: c for c in load(DOGFOOD / "syft.spdx.json")}
+def test_dogfood_reconciliation_lands_seeded_buckets() -> None:
+    manual = load(DOGFOOD / "manual.spdx", source="manual")
+    syft = load(DOGFOOD / "syft.spdx.json", source="syft")
+    result = reconcile(manual, syft)
 
-    assert manual["pydantic"].version == "2.0.0"
-    assert syft["pydantic"].version != "2.0.0"
+    only_manual_names = {c.name for c in result.only_in_manual}
+    assert {"internal-dicom-codec", "vendored-zlib"} <= only_manual_names
+
+    # Plenty of transitive deps Syft saw and the curator never listed.
+    assert len(result.only_in_syft) > 50
+
+    in_both_names = {m.name for m, _ in result.in_both}
+    assert {"pydicom", "rich", "cryptography"} <= in_both_names
+
+
+def test_dogfood_seeds_pydantic_version_disagreement() -> None:
+    manual = load(DOGFOOD / "manual.spdx", source="manual")
+    syft = load(DOGFOOD / "syft.spdx.json", source="syft")
+    result = reconcile(manual, syft)
+
+    mismatch_names = {m.name for m, _ in result.version_mismatches}
+    assert "pydantic" in mismatch_names

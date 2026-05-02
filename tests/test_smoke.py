@@ -1,13 +1,14 @@
 from pathlib import Path
 
-import pytest
 from click.testing import CliRunner
 
 from sbom_overlay import __version__
 from sbom_overlay.cli import cli
 from sbom_overlay.parsers.model import Component
-from sbom_overlay.reconcile.diff import Reconciliation, reconcile
+from sbom_overlay.reconcile.diff import Reconciliation
 from sbom_overlay.support.log import get_logger, setup_logging, strip_ansi
+
+DOGFOOD = Path(__file__).parent / "fixtures" / "dogfood" / "dicom-fuzzer-1.11.0"
 
 
 def test_version_flag() -> None:
@@ -16,29 +17,47 @@ def test_version_flag() -> None:
     assert __version__ in result.output
 
 
-def test_reconcile_not_implemented(tmp_path: Path) -> None:
-    manual = tmp_path / "manual.spdx.json"
-    syft = tmp_path / "syft.spdx.json"
-    manual.write_text("{}", encoding="utf-8")
-    syft.write_text("{}", encoding="utf-8")
-
+def test_reconcile_command_writes_report_and_exits_zero(tmp_path: Path) -> None:
+    out_dir = tmp_path / "artifacts"
     result = CliRunner().invoke(
         cli,
-        ["-v", "reconcile", "--manual", str(manual), "--syft", str(syft), "--name", "demo-1.0.0"],
+        [
+            "-v", "reconcile",
+            "--manual", str(DOGFOOD / "manual.spdx"),
+            "--syft", str(DOGFOOD / "syft.spdx.json"),
+            "--name", "dicom-fuzzer-1.11.0",
+            "--output-dir", str(out_dir),
+        ],
     )
-    assert result.exit_code == 1
-    assert "not implemented" in result.output
+    assert result.exit_code == 0, result.output
+    report_path = out_dir / "dicom-fuzzer-1.11.0-overlay.md"
+    assert report_path.exists()
+    assert "# SBOM reconciliation report — dicom-fuzzer-1.11.0" in report_path.read_text(
+        encoding="utf-8"
+    )
+
+
+def test_reconcile_command_reports_parse_error_with_exit_code_two(tmp_path: Path) -> None:
+    bad = tmp_path / "bad.spdx.json"
+    bad.write_text("{not valid json", encoding="utf-8")
+    result = CliRunner().invoke(
+        cli,
+        [
+            "reconcile",
+            "--manual", str(bad),
+            "--syft", str(DOGFOOD / "syft.spdx.json"),
+            "--name", "demo-1.0.0",
+            "--output-dir", str(tmp_path / "out"),
+        ],
+    )
+    assert result.exit_code == 2
+    assert "[-]" in result.output
 
 
 def test_component_dataclass_defaults() -> None:
     c = Component(name="openssl", version="3.0.0", source="manual")
     assert c.purl is None
     assert c.license is None
-
-
-def test_reconcile_stub() -> None:
-    with pytest.raises(NotImplementedError):
-        reconcile([], [])
 
 
 def test_reconciliation_dataclass() -> None:

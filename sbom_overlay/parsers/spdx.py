@@ -9,7 +9,7 @@ from spdx_tools.spdx.model.package import Package as SpdxPackage
 from spdx_tools.spdx.model.relationship import RelationshipType
 from spdx_tools.spdx.parser.parse_anything import parse_file
 
-from sbom_overlay.parsers.model import Component
+from sbom_overlay.parsers.model import Component, Source
 
 _log = logging.getLogger(__name__)
 
@@ -18,13 +18,13 @@ class SpdxParseError(ValueError):
     """Raised when an SPDX document cannot be parsed as SPDX 2.x."""
 
 
-def load(path: Path) -> list[Component]:
+def load(path: Path, source: Source = "manual") -> list[Component]:
     """Parse an SPDX 2.x SBOM into normalized Component records.
 
     Accepts any SPDX 2.x serialization that spdx-tools understands: JSON
     (.spdx.json), tag-value (.spdx, .txt), YAML (.spdx.yaml), and RDF/XML.
-    Components are tagged with source="manual" and returned in deterministic
-    order (lowercase name, then version).
+    Components are tagged with the given ``source`` and returned in
+    deterministic order (lowercase name, then version).
 
     Skips packages targeted by the document's DESCRIBES relationship; those
     represent the product itself and would otherwise produce a guaranteed
@@ -55,7 +55,7 @@ def load(path: Path) -> list[Component]:
             Component(
                 name=pkg.name,
                 version=pkg.version,
-                source="manual",
+                source=source,
                 purl=_extract_purl(pkg),
                 license=_extract_license(pkg),
             )
