@@ -56,4 +56,4 @@ def reconcile(manual: Path, syft: Path, name: str, output_dir: Path) -> None:
     console.print(f"[yellow][!][/yellow] license disagreements: "
                   f"{len(result.license_mismatches)}")
     console.print(f"[yellow][!][/yellow] only in Syft: {len(result.only_in_syft)}")
-    console.print(f"[blue][i][/blue] only in manual: {len(result.only_in_manual)}")
+    console.print(f"[blue]\\[i][/blue] only in manual: {len(result.only_in_manual)}")
