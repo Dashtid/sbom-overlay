@@ -4,6 +4,9 @@ import click
 from rich.console import Console
 
 from sbom_overlay import __version__
+from sbom_overlay.parsers.spdx import SpdxParseError, load
+from sbom_overlay.reconcile.diff import reconcile as reconcile_components
+from sbom_overlay.report.markdown import render
 from sbom_overlay.support.log import setup_logging
 
 console = Console()
@@ -31,6 +34,26 @@ def cli(ctx: click.Context, verbose: bool) -> None:
               default=Path("artifacts"), show_default=True, help="Where to write the report.")
 def reconcile(manual: Path, syft: Path, name: str, output_dir: Path) -> None:
     """Compare two SBOMs and write a reconciliation report."""
-    del manual, syft, name, output_dir  # silence unused until implemented
-    console.print("[yellow][!][/yellow] reconcile is not implemented yet")
-    raise click.exceptions.Exit(code=1)
+    try:
+        manual_components = load(manual, source="manual")
+        syft_components = load(syft, source="syft")
+    except SpdxParseError as exc:
+        console.print(f"[red][-][/red] {exc}")
+        raise click.exceptions.Exit(code=2) from exc
+
+    result = reconcile_components(manual_components, syft_components)
+    report = render(result, name=name)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out_path = output_dir / f"{name}-overlay.md"
+    out_path.write_text(report, encoding="utf-8")
+
+    agreed = len(result.in_both) - len(result.version_mismatches)
+    console.print(f"[green][+][/green] wrote {out_path}")
+    console.print(f"[green][+][/green] in both, agree: {agreed}")
+    console.print(f"[yellow][!][/yellow] version disagreements: "
+                  f"{len(result.version_mismatches)}")
+    console.print(f"[yellow][!][/yellow] license disagreements: "
+                  f"{len(result.license_mismatches)}")
+    console.print(f"[yellow][!][/yellow] only in Syft: {len(result.only_in_syft)}")
+    console.print(f"[blue][i][/blue] only in manual: {len(result.only_in_manual)}")
