@@ -36,6 +36,13 @@ def test_reconcile_command_writes_report_and_exits_zero(tmp_path: Path) -> None:
         encoding="utf-8"
     )
 
+    # Each summary line must keep its ASCII marker. [i] in particular needs
+    # escaping because Rich treats unescaped [i]...[/i] as italic markup
+    # and would silently swallow the literal characters.
+    assert "[+] in both, agree:" in result.output
+    assert "[!] version disagreements:" in result.output
+    assert "[i] only in manual:" in result.output
+
 
 def test_reconcile_command_reports_parse_error_with_exit_code_two(tmp_path: Path) -> None:
     bad = tmp_path / "bad.spdx.json"
