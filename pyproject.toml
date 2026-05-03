@@ -28,6 +28,7 @@ dependencies = [
     "rich>=13.0",
     "spdx-tools>=0.8.5",
     "license-expression>=30.0",
+    "packaging>=23.0",
 ]
 
 [project.urls]
@@ -79,6 +80,10 @@ warn_return_any = false
 
 [[tool.mypy.overrides]]
 module = "license_expression"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "packaging.version"
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
