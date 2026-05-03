@@ -70,7 +70,7 @@ Terminal:
 [+] wrote artifacts/dicom-fuzzer-1.11.0-overlay.md
 [+] in both, agree: 10
 [!] version disagreements: 1
-[!] license disagreements: 5
+[!] license disagreements: 4
 [!] only in Syft: 122
 [i] only in manual: 2
 ```
@@ -86,7 +86,7 @@ The report itself is a Markdown file with one section per bucket:
 - Only in Syft: 122
 - In both, agree on version: 10
 - Version disagreements: 1
-- License disagreements: 5
+- License disagreements: 4
 
 ## Only in manual
 
@@ -110,11 +110,14 @@ the report's diff is stable run-to-run.
 - **Component identity** is lowercase name match. PURL-based matching is
   deferred because PURLs embed the version and cannot match the
   same-name-different-version disagreement bucket.
-- **Version equivalence** is strict string equality. `1.0` ≠ `1.0.0` in
-  v1; PEP 440 / semver is a rabbit hole.
-- **License equivalence** is strict string equality. `Apache-2.0 OR MIT`
-  ≠ `MIT OR Apache-2.0`; SPDX expression equivalence flagged for the
-  reviewer.
+- **Version equivalence** uses PEP 440. `1.0` and `1.0.0` agree;
+  `1.0.0+local` is treated as a distinct release. Unparseable versions
+  fall back to strict string equality.
+- **License equivalence** uses SPDX expression parsing.
+  `Apache-2.0 OR MIT` and `MIT OR Apache-2.0` agree (`OR`/`AND` are
+  commutative); `Apache-2.0` and `Apache 2.0` do not (the latter is not
+  a valid SPDX identifier). Unparseable expressions fall back to strict
+  string equality.
 - **No CycloneDX support.** Have Syft emit SPDX
   (`syft scan ... -o spdx-json=...`) — both sides same format, no
   translation layer.

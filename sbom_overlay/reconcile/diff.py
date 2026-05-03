@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from sbom_overlay.parsers.model import Component
+from sbom_overlay.reconcile.equivalence import licenses_equal, versions_equal
 
 
 @dataclass(frozen=True)
@@ -27,17 +28,23 @@ class Reconciliation:
 
     @property
     def version_mismatches(self) -> list[tuple[Component, Component]]:
-        """In-both pairs whose versions disagree."""
-        return [(m, s) for m, s in self.in_both if m.version != s.version]
+        """In-both pairs whose versions disagree under PEP 440 equivalence.
+
+        ``1.0`` and ``1.0.0`` agree; ``1.0.0`` and ``1.0.0+local`` disagree.
+        Unparseable versions fall back to strict string equality.
+        """
+        return [(m, s) for m, s in self.in_both if not versions_equal(m.version, s.version)]
 
     @property
     def license_mismatches(self) -> list[tuple[Component, Component]]:
-        """In-both pairs whose license strings disagree.
+        """In-both pairs whose license expressions disagree.
 
-        Both ``None`` counts as agreement; one ``None`` and one set string
-        counts as disagreement.
+        ``Apache-2.0 OR MIT`` and ``MIT OR Apache-2.0`` agree (OR/AND is
+        commutative). Both ``None`` agrees; one ``None`` and one set
+        license disagrees. Unparseable expressions fall back to strict
+        string equality.
         """
-        return [(m, s) for m, s in self.in_both if m.license != s.license]
+        return [(m, s) for m, s in self.in_both if not licenses_equal(m.license, s.license)]
 
 
 def reconcile(manual: list[Component], syft: list[Component]) -> Reconciliation:
