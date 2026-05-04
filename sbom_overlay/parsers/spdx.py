@@ -7,7 +7,9 @@ from license_expression import LicenseExpression
 from spdx_tools.spdx.model.document import Document as SpdxDocument
 from spdx_tools.spdx.model.package import Package as SpdxPackage
 from spdx_tools.spdx.model.relationship import RelationshipType
+from spdx_tools.spdx.parser.error import SPDXParsingError
 from spdx_tools.spdx.parser.parse_anything import parse_file
+from spdx_tools.spdx.parser.tagvalue.tagvalue_parser import parse_from_file as parse_tag_value
 
 from sbom_overlay.parsers.model import Component, Source
 
@@ -26,6 +28,12 @@ def load(path: Path, source: Source = "manual") -> list[Component]:
     Components are tagged with the given ``source`` and returned in
     deterministic order (lowercase name, then version).
 
+    File extension is the primary dispatch hint, but tag-value content
+    under an unrecognized extension (notably ``.txt``, which is how
+    hand-curated SPDX SBOMs commonly land on disk) falls back to a
+    content-sniff: if the first non-blank line begins with
+    ``SPDXVersion``, parse as tag-value regardless of extension.
+
     Skips packages targeted by the document's DESCRIBES relationship; those
     represent the product itself and would otherwise produce a guaranteed
     "Only in manual" entry on every report.
@@ -35,7 +43,7 @@ def load(path: Path, source: Source = "manual") -> list[Component]:
     cannot interpret the underlying graph-based format.
     """
     try:
-        doc = parse_file(str(path))
+        doc = _parse(path)
     except Exception as exc:
         raise SpdxParseError(f"{path}: {exc}") from exc
 
@@ -62,6 +70,26 @@ def load(path: Path, source: Source = "manual") -> list[Component]:
         )
     components.sort(key=lambda c: (c.name.lower(), c.version))
     return components
+
+
+def _parse(path: Path) -> SpdxDocument:
+    """Dispatch to spdx-tools, with a content-sniff fallback for tag-value.
+
+    spdx-tools' ``parse_anything`` keys off the file extension and rejects
+    unknown ones (including ``.txt``) with "Unsupported SPDX file type"
+    even when the content is a valid tag-value document. We catch that
+    specific case and route to the tag-value parser when the content
+    starts with ``SPDXVersion`` — the unambiguous tag-value signature.
+    """
+    try:
+        return parse_file(str(path))
+    except SPDXParsingError as exc:
+        if "Unsupported SPDX file type" not in str(exc):
+            raise
+        head = path.read_text(encoding="utf-8", errors="replace").lstrip()[:32]
+        if head.startswith("SPDXVersion"):
+            return parse_tag_value(str(path))
+        raise
 
 
 def _document_describes(doc: SpdxDocument) -> set[str]:

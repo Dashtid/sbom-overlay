@@ -100,6 +100,27 @@ def test_load_spdx_3_document_raises_parse_error(tmp_path: Path) -> None:
         load(p)
 
 
+def test_load_handles_tag_value_under_txt_extension(tmp_path: Path) -> None:
+    # Hand-curated SPDX SBOMs commonly land on disk as .txt files. spdx-tools'
+    # extension-based dispatch rejects those with "Unsupported SPDX file
+    # type"; our parser falls back to content-sniffing the SPDXVersion line.
+    src = (FIXTURES / "tagvalue_minimal.spdx").read_text(encoding="utf-8")
+    txt = tmp_path / "manual_sbom.txt"
+    txt.write_text(src, encoding="utf-8")
+
+    components = load(txt, source="manual")
+    assert [c.name for c in components] == ["lz4"]
+
+
+def test_load_unrecognized_extension_without_spdx_signature_raises(tmp_path: Path) -> None:
+    # Content that isn't tag-value SPDX should still fail loudly even when
+    # the extension is unknown — we don't silently accept arbitrary content.
+    p = tmp_path / "garbage.xyz"
+    p.write_text("not an SPDX document at all", encoding="utf-8")
+    with pytest.raises(SpdxParseError):
+        load(p)
+
+
 def test_load_handles_document_with_no_packages(tmp_path: Path) -> None:
     p = tmp_path / "empty.spdx.json"
     p.write_text(
