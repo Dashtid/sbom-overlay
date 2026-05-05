@@ -34,17 +34,7 @@ Thumbs.db
 
 # Project artifacts
 sbom_inputs/
+artifacts/
 logs/
 *.spdx.json
 !tests/fixtures/**/*.spdx.json
-
-# artifacts/: tracked structure, ignored contents.
-# The three subdirs exist (via .gitkeep) so a fresh clone has the layout
-# ready; the actual SBOMs and reports inside never get committed because
-# they're typically customer-confidential.
-artifacts/manual/*
-artifacts/syft/*
-artifacts/reports/*
-!artifacts/manual/.gitkeep
-!artifacts/syft/.gitkeep
-!artifacts/reports/.gitkeep

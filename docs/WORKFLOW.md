@@ -1,9 +1,14 @@
-# artifacts/
+# Workflow: using sbom-overlay on real SBOMs
 
-Working directory for real SBOMs. The folder structure is tracked but
-the contents are git-ignored — what you put here stays local.
+End-to-end guide for reconciling a hand-curated SPDX SBOM against a
+Syft-generated one. Companion to [ARCHITECTURE.md](ARCHITECTURE.md),
+which describes how the tool is built; this file describes how to
+use it.
 
-## Layout
+## Working directory
+
+The repo's convention is to keep working SBOMs under `artifacts/` at
+the repo root, organized by function:
 
 ```
 artifacts/
@@ -11,6 +16,18 @@ artifacts/
 ├── syft/        Syft-generated SPDX SBOMs you scan
 └── reports/     reconciliation reports the tool writes
 ```
+
+`artifacts/` is fully git-ignored, so the SBOMs you drop there stay
+local — important when they describe customer-confidential products.
+On a fresh clone, create the structure once:
+
+```bash
+mkdir -p artifacts/{manual,syft,reports}
+```
+
+The structure isn't enforced — sbom-overlay accepts any path through
+its `--manual`, `--syft`, and `--output-dir` flags. The convention is
+just what makes the workflow legible.
 
 ## Naming convention
 
@@ -25,12 +42,10 @@ descriptive (product + version is the obvious choice):
 
 The `.syft.` infix marks the source so a future Trivy or Tern scan
 (`<name>.trivy.spdx.json`) doesn't collide with the Syft one. The
-`--name` CLI flag is the join key; the tool builds the report filename
-from it automatically.
+`--name` CLI flag is the join key; the tool builds the report
+filename from it automatically.
 
 ## End-to-end workflow
-
-Three steps, one per file:
 
 ### 1. Hand-curate the manual SBOM
 
@@ -117,10 +132,3 @@ sbom-overlay reconcile \
 
 # Read artifacts/reports/affinity-6.0.0-overlay.md
 ```
-
-## Why everything is ignored
-
-The SBOMs you put here typically describe customer-confidential
-products. The `.gitignore` is set up so you can't accidentally commit
-them — only the three `.gitkeep` placeholders and this README are
-tracked. Your real SBOMs stay on your machine.
